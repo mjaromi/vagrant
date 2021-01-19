@@ -53,7 +53,9 @@ module VagrantPlugins
 
           fstab_entry = Vagrant::Util::TemplateRenderer.render('guests/linux/etc_fstab', folders: export_folders)
           self.remove_vagrant_managed_fstab(machine)
-          machine.communicate.sudo("echo '#{fstab_entry}' >> /etc/fstab")
+          if fstab_writable?(machine)
+            machine.communicate.sudo("echo '#{fstab_entry}' >> /etc/fstab")
+          end
         end
 
         private
@@ -62,8 +64,12 @@ module VagrantPlugins
           machine.communicate.test("test -f /etc/fstab")
         end
 
+        def self.fstab_writable?(machine)
+          machine.communicate.test("test -w /etc/fstab")
+        end
+
         def self.remove_vagrant_managed_fstab(machine)
-          if fstab_exists?(machine)
+          if fstab_exists?(machine) and fstab_writable?(machine)
             machine.communicate.sudo("sed -i '/\#VAGRANT-BEGIN/,/\#VAGRANT-END/d' /etc/fstab")
           else
             @@logger.info("no fstab file found, carrying on")
